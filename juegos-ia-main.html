@@ -1,0 +1,1209 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Juegos IA — Plataforma de Juegos HTML</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<!-- Supabase JS Client (CDN) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131a;
+    --surface2: #1c1c26;
+    --border: #2a2a3a;
+    --accent: #7c3aed;
+    --accent2: #a855f7;
+    --accent-glow: rgba(124,58,237,0.25);
+    --text: #f0f0f8;
+    --text-muted: #8080a0;
+    --text-dim: #50507a;
+    --green: #10b981;
+    --red: #ef4444;
+    --tag-bg: rgba(124,58,237,0.15);
+    --tag-border: rgba(124,58,237,0.3);
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f4f4f8;
+      --surface: #ffffff;
+      --surface2: #f0f0f6;
+      --border: #dddde8;
+      --text: #0a0a1a;
+      --text-muted: #60607a;
+      --text-dim: #9090b0;
+      --tag-bg: rgba(124,58,237,0.08);
+      --accent-glow: rgba(124,58,237,0.12);
+    }
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    min-height: 100vh;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /* NAV */
+  nav {
+    position: sticky;
+    top: env(safe-area-inset-top, 0px);
+    background: rgba(10,10,15,0.85);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+    z-index: 100;
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    height: 64px;
+  }
+  @media (prefers-color-scheme: light) {
+    nav { background: rgba(244,244,248,0.9); }
+  }
+  .logo {
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+    font-size: 1.15rem;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .logo-dot {
+    width: 10px; height: 10px;
+    background: var(--accent2);
+    border-radius: 50%;
+    box-shadow: 0 0 10px var(--accent2);
+  }
+  .search-bar {
+    flex: 1;
+    max-width: 380px;
+    position: relative;
+  }
+  .search-bar input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    color: var(--text);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.85rem;
+    padding: 8px 16px 8px 36px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .search-bar input:focus { border-color: var(--accent); }
+  .search-bar svg {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 15px;
+    height: 15px;
+    stroke: var(--text-muted);
+  }
+  .upload-btn {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 9px 18px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: background 0.15s, box-shadow 0.15s, transform 0.1s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .upload-btn:hover { background: var(--accent2); box-shadow: 0 0 20px var(--accent-glow); }
+  .upload-btn:active { transform: scale(0.98); }
+
+  /* HERO */
+  .hero {
+    padding: 48px 24px 36px;
+    text-align: center;
+    max-width: 680px;
+    margin: 0 auto;
+  }
+  .hero h1 {
+    font-size: clamp(2rem, 5vw, 3.2rem);
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+    margin-bottom: 12px;
+  }
+  .hero h1 span {
+    background: linear-gradient(135deg, var(--accent2), #60a5fa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .hero p { color: var(--text-muted); font-size: 1rem; line-height: 1.6; }
+
+  /* FILTERS */
+  .filters {
+    display: flex;
+    gap: 8px;
+    padding: 0 24px 28px;
+    flex-wrap: wrap;
+    max-width: 1200px;
+    margin: 0 auto;
+    align-items: center;
+  }
+  .filter-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    border-radius: 100px;
+    padding: 6px 16px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .filter-btn:hover, .filter-btn.active {
+    background: var(--tag-bg);
+    border-color: var(--accent);
+    color: var(--accent2);
+  }
+  .game-count {
+    margin-left: auto;
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    font-family: 'Space Mono', monospace;
+  }
+
+  /* GRID */
+  .grid-wrap {
+    padding: 0 24px 60px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  .game-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 20px;
+  }
+  .game-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.18s, border-color 0.18s, box-shadow 0.18s;
+    position: relative;
+  }
+  .game-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--accent);
+    box-shadow: 0 8px 32px var(--accent-glow);
+  }
+  .card-thumb {
+    width: 100%;
+    aspect-ratio: 16/10;
+    background: var(--surface2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+  }
+  .card-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .card-thumb-placeholder {
+    color: var(--text-dim);
+    font-size: 2.8rem;
+  }
+  .card-play-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(10,10,15,0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.18s;
+  }
+  .game-card:hover .card-play-overlay { opacity: 1; }
+  .play-icon {
+    width: 48px; height: 48px;
+    background: var(--accent);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 24px var(--accent-glow);
+  }
+  .play-icon svg { width: 20px; height: 20px; fill: white; margin-left: 3px; }
+  .delete-card-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: rgba(10,10,15,0.75);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s, color 0.15s, border-color 0.15s;
+    z-index: 5;
+  }
+  .game-card:hover .delete-card-btn { opacity: 1; }
+  .delete-card-btn:hover { color: var(--red); border-color: var(--red); }
+
+  .card-body { padding: 14px 16px; }
+  .card-title {
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .card-desc {
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin-bottom: 10px;
+    min-height: 2.2em;
+  }
+  .card-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .card-author {
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    font-family: 'Space Mono', monospace;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .device-tags { display: flex; gap: 4px; flex-wrap: wrap; flex-shrink: 0; }
+  .device-tag {
+    font-size: 0.65rem;
+    background: var(--tag-bg);
+    border: 1px solid var(--tag-border);
+    color: var(--accent2);
+    border-radius: 100px;
+    padding: 2px 7px;
+    font-weight: 600;
+  }
+
+  /* EMPTY */
+  .empty-state {
+    text-align: center;
+    padding: 80px 24px;
+    color: var(--text-dim);
+    grid-column: 1/-1;
+  }
+  .empty-state .empty-icon { font-size: 3rem; margin-bottom: 16px; }
+  .empty-state p { font-size: 0.9rem; margin-bottom: 4px; }
+  .empty-state strong { color: var(--text-muted); }
+
+  /* MODAL OVERLAY */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.8);
+    backdrop-filter: blur(6px);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+  .modal-overlay.visible { opacity: 1; pointer-events: all; }
+
+  /* UPLOAD MODAL */
+  .upload-modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    width: 100%;
+    max-width: 540px;
+    max-height: 90vh;
+    overflow-y: auto;
+    transform: translateY(20px);
+    transition: transform 0.2s;
+  }
+  .modal-overlay.visible .upload-modal,
+  .modal-overlay.visible .play-modal-box { transform: translateY(0); }
+  .modal-header {
+    padding: 20px 24px 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .modal-header h2 { font-size: 1.1rem; font-weight: 600; }
+  .modal-close, .icon-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .modal-close:hover, .icon-btn:hover { background: var(--border); border-color: var(--accent); }
+  .modal-body { padding: 0 24px 24px; display: flex; flex-direction: column; gap: 16px; }
+
+  /* FORM */
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .form-input {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.9rem;
+    padding: 10px 14px;
+    outline: none;
+    transition: border-color 0.15s;
+    resize: vertical;
+  }
+  .form-input:focus { border-color: var(--accent); }
+  .form-input::placeholder { color: var(--text-dim); }
+
+  /* DEVICE CHECKBOXES */
+  .device-checks {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .device-check {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 7px 12px;
+    font-size: 0.82rem;
+    transition: all 0.15s;
+    user-select: none;
+  }
+  .device-check input { display: none; }
+  .device-check.checked {
+    background: var(--tag-bg);
+    border-color: var(--accent);
+    color: var(--accent2);
+  }
+
+  /* FILE DROPS */
+  .file-drop {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface2);
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .file-drop:hover, .file-drop.drag-over {
+    border-color: var(--accent);
+    background: var(--tag-bg);
+  }
+  .file-drop p { color: var(--text-dim); font-size: 0.82rem; margin-top: 6px; }
+  .file-drop .drop-icon { font-size: 1.6rem; }
+  .file-name {
+    font-size: 0.8rem;
+    color: var(--green);
+    font-family: 'Space Mono', monospace;
+    margin-top: 6px;
+    word-break: break-all;
+  }
+  .file-name.error { color: var(--red); }
+
+  /* IMAGE PREVIEW */
+  .img-preview {
+    width: 100%;
+    aspect-ratio: 16/10;
+    object-fit: cover;
+    border-radius: var(--radius-sm);
+    display: none;
+    margin-top: 8px;
+  }
+  .img-preview.show { display: block; }
+
+  /* SUBMIT BTN */
+  .submit-btn {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 12px 24px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: background 0.15s, box-shadow 0.15s;
+    width: 100%;
+  }
+  .submit-btn:hover:not(:disabled) { background: var(--accent2); box-shadow: 0 0 24px var(--accent-glow); }
+  .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* STATUS MSG */
+  .status-msg {
+    font-size: 0.82rem;
+    text-align: center;
+    min-height: 1.2em;
+    color: var(--text-muted);
+  }
+  .status-msg.ok { color: var(--green); }
+  .status-msg.err { color: var(--red); }
+
+  /* PLAY MODAL */
+  .play-modal-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    width: 100%;
+    max-width: 960px;
+    height: 85vh;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    transform: translateY(20px);
+    transition: transform 0.2s;
+    overflow: hidden;
+  }
+  .play-modal-header {
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    gap: 12px;
+    flex-shrink: 0;
+  }
+  .play-modal-title {
+    font-weight: 700;
+    font-size: 1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .play-modal-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .play-frame-wrap {
+    flex: 1;
+    min-height: 0;
+    background: #000;
+    position: relative;
+  }
+  .play-frame-wrap iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+  }
+  .game-info-bar {
+    padding: 10px 20px;
+    border-top: 1px solid var(--border);
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+  }
+  .info-sep { color: var(--border); }
+
+  @media (max-width: 640px) {
+    nav { padding: 0 14px; }
+    .search-bar { display: none; }
+    .hero { padding: 36px 16px 28px; }
+    .filters { padding: 0 16px 20px; }
+    .grid-wrap { padding: 0 16px 40px; }
+    .game-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 14px; }
+    .play-modal-box { height: 92vh; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="#" class="logo">
+    <div class="logo-dot"></div>
+    Juegos IA
+  </a>
+  <div class="search-bar">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="text" id="searchInput" placeholder="Buscar juegos o creadores...">
+  </div>
+  <button type="button" class="upload-btn" id="openUploadBtn">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    Subir juego
+  </button>
+</nav>
+
+<section class="hero">
+  <h1>Juega <span>sin instalar</span> nada</h1>
+  <p>Sube tus juegos creados con IA en formato HTML y juégalos al instante directo en el navegador.</p>
+</section>
+
+<div class="filters" id="filtersBar">
+  <button type="button" class="filter-btn active" data-filter="all">Todos</button>
+  <button type="button" class="filter-btn" data-filter="desktop">🖥 PC</button>
+  <button type="button" class="filter-btn" data-filter="mobile">📱 Móvil</button>
+  <button type="button" class="filter-btn" data-filter="tablet">📟 Tablet</button>
+  <span class="game-count" id="gameCount"></span>
+</div>
+
+<div class="grid-wrap">
+  <div class="game-grid" id="gameGrid"></div>
+</div>
+
+<!-- UPLOAD MODAL -->
+<div class="modal-overlay" id="uploadOverlay">
+  <div class="upload-modal" role="dialog" aria-modal="true" aria-label="Subir juego">
+    <div class="modal-header">
+      <h2>Publicar nuevo juego en Juegos IA</h2>
+      <button type="button" class="modal-close" id="closeUploadBtn" title="Cerrar">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <div class="form-group">
+        <label>Nombre del juego *</label>
+        <input type="text" class="form-input" id="gameName" placeholder="Ej. Neon Space Shooter" maxlength="60">
+      </div>
+
+      <div class="form-group">
+        <label>Descripción</label>
+        <textarea class="form-input" id="gameDesc" rows="2" placeholder="Controles, objetivo del juego..." maxlength="300"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label>Creador</label>
+        <input type="text" class="form-input" id="gameAuthor" placeholder="Tu nombre o nick" maxlength="40">
+      </div>
+
+      <div class="form-group">
+        <label>Dispositivos compatibles *</label>
+        <div class="device-checks">
+          <label class="device-check checked" data-device="desktop">
+            <input type="checkbox" value="desktop" checked> 🖥 PC
+          </label>
+          <label class="device-check" data-device="mobile">
+            <input type="checkbox" value="mobile"> 📱 Móvil
+          </label>
+          <label class="device-check" data-device="tablet">
+            <input type="checkbox" value="tablet"> 📟 Tablet
+          </label>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Imagen de portada (Opcional)</label>
+        <div class="file-drop" id="imgDrop">
+          <div class="drop-icon">🖼️</div>
+          <p>Arrastra una imagen o <strong>haz clic para seleccionar</strong></p>
+          <p style="font-size:0.72rem;margin-top:4px">JPG, PNG, WebP — máx 5 MB</p>
+          <input type="file" id="imgInput" accept="image/*" style="display:none">
+          <div class="file-name" id="imgName"></div>
+        </div>
+        <img class="img-preview" id="imgPreview" alt="Vista previa">
+      </div>
+
+      <div class="form-group">
+        <label>Archivo del juego (.html) *</label>
+        <div class="file-drop" id="gameDrop">
+          <div class="drop-icon">🎮</div>
+          <p>Arrastra tu archivo HTML o <strong>haz clic para seleccionar</strong></p>
+          <p style="font-size:0.72rem;margin-top:4px">Archivos .html o .htm — máx 25 MB</p>
+          <input type="file" id="gameInput" accept=".html,.htm,text/html" style="display:none">
+          <div class="file-name" id="gameFName"></div>
+        </div>
+      </div>
+
+      <p class="status-msg" id="uploadStatus"></p>
+
+      <button type="button" class="submit-btn" id="submitBtn">Publicar juego ahora</button>
+
+    </div>
+  </div>
+</div>
+
+<!-- PLAY MODAL -->
+<div class="modal-overlay" id="playOverlay">
+  <div class="play-modal-box" role="dialog" aria-modal="true">
+    <div class="play-modal-header">
+      <span class="play-modal-title" id="playTitle"></span>
+      <div class="play-modal-meta">
+        <div class="device-tags" id="playDeviceTags"></div>
+        <button type="button" class="icon-btn" id="fullscreenBtn" title="Pantalla completa">⛶</button>
+        <button type="button" class="modal-close" id="closePlayBtn" title="Cerrar">✕</button>
+      </div>
+    </div>
+    <div class="play-frame-wrap" id="frameWrap">
+      <iframe id="gameFrame" sandbox="allow-scripts allow-same-origin allow-forms allow-pointer-lock" allow="gamepad; fullscreen"></iframe>
+    </div>
+    <div class="game-info-bar" id="gameInfoBar"></div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  /* ──────────────────────────────────────────────────────────
+     CONFIGURACIÓN DE SUPABASE (Opcional - Modo Híbrido)
+     Si dejas esto en blanco o vacío, funcionará con almacenamiento
+     local en tu navegador de forma automática.
+     Para conectar Supabase, pon aquí tus credenciales:
+     ────────────────────────────────────────────────────────── */
+  const SUPABASE_URL = 'https://xtjsujfhwqmdvnabhylz.supabase.co'
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0anN1amZod3FtZHZuYWJoeWx6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTUwMjczMTgsImV4cCI6MjExMDYwMzMxOH0.NqhWM6VcUS6KCCgj2UGelYXGdRHyJgM7tqX2EuAXM6A'
+
+  let supabaseClient = null;
+  if (SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase) {
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
+
+  const DEMO_GAME_HTML = `<!DOCTYPE html><html><head><style>
+    body{margin:0;background:#090910;color:#fff;font-family:sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;overflow:hidden}
+    canvas{border:2px solid #7c3aed;border-radius:8px;box-shadow:0 0 25px rgba(124,58,237,0.4);background:#111}
+    p{margin-top:10px;color:#a0a0c0;font-size:14px}
+  </style></head><body>
+    <canvas id="c" width="400" height="400"></canvas>
+    <p>Usa las flechas ⬆️⬇️⬅️➡️ para moverte y atrapar los puntos morados</p>
+    <script>
+      const c=document.getElementById('c'),ctx=c.getContext('2d');
+      let p={x:180,y:180,s:20},t={x:80,y:80,s:16},score=0,keys={};
+      window.onkeydown=e=>keys[e.key]=true;
+      window.onkeyup=e=>keys[e.key]=false;
+      function loop(){
+        if(keys.ArrowUp&&p.y>0)p.y-=4;
+        if(keys.ArrowDown&&p.y<380)p.y+=4;
+        if(keys.ArrowLeft&&p.x>0)p.x-=4;
+        if(keys.ArrowRight&&p.x<380)p.x+=4;
+        if(Math.abs(p.x-t.x)<20&&Math.abs(p.y-t.y)<20){
+          score++;
+          t.x=Math.random()*360+10;
+          t.y=Math.random()*360+10;
+        }
+        ctx.fillStyle='#111';ctx.fillRect(0,0,400,400);
+        ctx.fillStyle='#a855f7';ctx.beginPath();ctx.arc(t.x+8,t.y+8,8,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='#10b981';ctx.fillRect(p.x,p.y,p.s,p.s);
+        ctx.fillStyle='#fff';ctx.font='bold 18px sans-serif';ctx.fillText('Puntos: '+score,16,30);
+        requestAnimationFrame(loop);
+      }
+      loop();
+    <\/script></body></html>`;
+
+  /* ── ALMACENAMIENTO HÍBRIDO (SUPABASE / INDEXEDDB) ────── */
+  const DB_NAME = 'JuegosIADB';
+  const DB_VERSION = 1;
+  const STORE_NAME = 'games';
+  let memoryGames = [];
+
+  function openDB() {
+    return new Promise((resolve, reject) => {
+      try {
+        if (!window.indexedDB) return reject(new Error('No IndexedDB'));
+        const req = indexedDB.open(DB_NAME, DB_VERSION);
+        req.onupgradeneeded = e => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains(STORE_NAME)) {
+            db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+          }
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      } catch (err) {
+        reject(err);
+      }
+    });
+  }
+
+  async function getAllGames() {
+    if (supabaseClient) {
+      try {
+        const { data, error } = await supabaseClient
+          .from('games')
+          .select('*')
+          .order('created_at', { ascending: false });
+        if (!error && data) {
+          return data.map(item => ({
+            id: item.id,
+            name: item.name,
+            description: item.description,
+            author: item.author,
+            devices: item.devices || [],
+            thumbUrl: item.thumb_url,
+            htmlContent: item.html_content, // O enlace en Storage si prefieres guardar URLs
+            createdAt: new Date(item.created_at).getTime()
+          }));
+        }
+      } catch (err) {
+        console.warn('Error conectando a Supabase, usando respaldo local:', err);
+      }
+    }
+
+    try {
+      const db = await openDB();
+      return await new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const store = tx.objectStore(STORE_NAME);
+        const req = store.getAll();
+        req.onsuccess = () => {
+          const list = req.result || [];
+          list.sort((a, b) => b.createdAt - a.createdAt);
+          resolve(list);
+        };
+        req.onerror = () => reject(req.error);
+      });
+    } catch (e) {
+      try {
+        const saved = JSON.parse(localStorage.getItem('juegosia_backup') || '[]');
+        return saved.length ? saved : memoryGames;
+      } catch (_) {
+        return memoryGames;
+      }
+    }
+  }
+
+  async function saveGame(gameObj) {
+    if (supabaseClient) {
+      try {
+        const { error } = await supabaseClient.from('games').insert([{
+          id: gameObj.id,
+          name: gameObj.name,
+          description: gameObj.description,
+          author: gameObj.author,
+          devices: gameObj.devices,
+          thumb_url: gameObj.thumbUrl,
+          html_content: gameObj.htmlContent,
+          created_at: new Date(gameObj.createdAt).toISOString()
+        }]);
+        if (error) throw error;
+        return;
+      } catch (err) {
+        console.warn('Error al guardar en Supabase, guardando localmente:', err);
+      }
+    }
+
+    memoryGames = [gameObj, ...memoryGames.filter(g => g.id !== gameObj.id)];
+    try {
+      const db = await openDB();
+      await new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        const req = store.put(gameObj);
+        req.onsuccess = () => resolve();
+        req.onerror = () => reject(req.error);
+      });
+    } catch (e) {
+      try {
+        localStorage.setItem('juegosia_backup', JSON.stringify(memoryGames));
+      } catch (_) {}
+    }
+  }
+
+  async function deleteGame(id) {
+    if (supabaseClient) {
+      try {
+        await supabaseClient.from('games').delete().eq('id', id);
+      } catch (err) {
+        console.warn('Error al eliminar en Supabase:', err);
+      }
+    }
+
+    memoryGames = memoryGames.filter(g => g.id !== id);
+    try {
+      const db = await openDB();
+      await new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        const req = store.delete(id);
+        req.onsuccess = () => resolve();
+        req.onerror = () => reject(req.error);
+      });
+    } catch (e) {
+      try {
+        localStorage.setItem('juegosia_backup', JSON.stringify(memoryGames));
+      } catch (_) {}
+    }
+  }
+
+  /* ── ESTADO Y ELEMENTOS ──────────────────────────────── */
+  let games = [];
+  let activeFilter = 'all';
+  let searchQuery = '';
+  let imgDataUrl = null;
+  let gameHtmlContent = null;
+  let currentBlobUrl = null;
+
+  const grid        = document.getElementById('gameGrid');
+  const gameCount   = document.getElementById('gameCount');
+  const searchInput = document.getElementById('searchInput');
+  const uploadBtn   = document.getElementById('openUploadBtn');
+  const closeUpBtn  = document.getElementById('closeUploadBtn');
+  const uploadOvl   = document.getElementById('uploadOverlay');
+  const playOvl     = document.getElementById('playOverlay');
+  const closePlayB  = document.getElementById('closePlayBtn');
+  const fullscreenB = document.getElementById('fullscreenBtn');
+  const submitBtn   = document.getElementById('submitBtn');
+  const statusMsg   = document.getElementById('uploadStatus');
+  const imgDrop     = document.getElementById('imgDrop');
+  const imgInput    = document.getElementById('imgInput');
+  const imgName     = document.getElementById('imgName');
+  const imgPreview  = document.getElementById('imgPreview');
+  const gameDrop    = document.getElementById('gameDrop');
+  const gameInput   = document.getElementById('gameInput');
+  const gameFName   = document.getElementById('gameFName');
+
+  /* ── EVENTOS DE MODALES ──────────────────────────────── */
+  uploadBtn.addEventListener('click', () => {
+    uploadOvl.classList.add('visible');
+  });
+  closeUpBtn.addEventListener('click', closeUploadModal);
+  uploadOvl.addEventListener('click', e => { if (e.target === uploadOvl) closeUploadModal(); });
+
+  function closeUploadModal() {
+    uploadOvl.classList.remove('visible');
+    resetForm();
+  }
+
+  /* ── FILTROS Y BÚSQUEDA ──────────────────────────────── */
+  document.getElementById('filtersBar').addEventListener('click', e => {
+    const btn = e.target.closest('.filter-btn');
+    if (!btn) return;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeFilter = btn.dataset.filter;
+    renderGrid();
+  });
+
+  searchInput.addEventListener('input', e => {
+    searchQuery = e.target.value.toLowerCase().trim();
+    renderGrid();
+  });
+
+  /* ── RENDERIZAR CUADRÍCULA ───────────────────────────── */
+  function renderGrid() {
+    let filtered = activeFilter === 'all'
+      ? games
+      : games.filter(g => g.devices && g.devices.includes(activeFilter));
+
+    if (searchQuery) {
+      filtered = filtered.filter(g =>
+        g.name.toLowerCase().includes(searchQuery) ||
+        (g.author && g.author.toLowerCase().includes(searchQuery)) ||
+        (g.description && g.description.toLowerCase().includes(searchQuery))
+      );
+    }
+
+    gameCount.textContent = `${filtered.length} ${filtered.length === 1 ? 'juego' : 'juegos'}`;
+
+    if (!filtered.length) {
+      grid.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">🕹️</div>
+          <p><strong>No hay juegos todavía.</strong></p>
+          <p>Haz clic en "Subir juego" arriba a la derecha para publicar tu archivo HTML.</p>
+        </div>`;
+      return;
+    }
+
+    grid.innerHTML = filtered.map(g => `
+      <div class="game-card" data-id="${g.id}">
+        <button type="button" class="delete-card-btn" data-del="${g.id}" title="Eliminar juego">✕</button>
+        <div class="card-thumb">
+          ${g.thumbUrl
+            ? `<img src="${g.thumbUrl}" alt="${escHtml(g.name)}" loading="lazy">`
+            : `<div class="card-thumb-placeholder">🎮</div>`}
+          <div class="card-play-overlay">
+            <div class="play-icon">
+              <svg viewBox="0 0 24 24"><path d="M5 3l14 9-14 9z"/></svg>
+            </div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="card-title">${escHtml(g.name)}</div>
+          <div class="card-desc">${escHtml(g.description || 'Sin descripción')}</div>
+          <div class="card-meta">
+            <span class="card-author">@${escHtml(g.author || 'creador')}</span>
+            <div class="device-tags">
+              ${(g.devices || []).map(d => `<span class="device-tag">${deviceLabel(d)}</span>`).join('')}
+            </div>
+          </div>
+        </div>
+      </div>`).join('');
+
+    grid.querySelectorAll('.game-card').forEach(card => {
+      card.addEventListener('click', e => {
+        const delBtn = e.target.closest('.delete-card-btn');
+        if (delBtn) {
+          e.stopPropagation();
+          if (confirm('¿Quieres eliminar este juego de la lista?')) {
+            deleteGame(delBtn.dataset.del).then(refreshGames);
+          }
+          return;
+        }
+        const game = games.find(g => g.id === card.dataset.id);
+        if (game) openPlayModal(game);
+      });
+    });
+  }
+
+  /* ── CARGAR JUEGOS ───────────────────────────────────── */
+  async function refreshGames() {
+    games = await getAllGames();
+    let seeded = false;
+    try { seeded = !!localStorage.getItem('juegosia_demo_seeded'); } catch (_) {}
+
+    if (games.length === 0 && !seeded) {
+      const demo = {
+        id: 'game_demo_1',
+        name: 'Catch Neon (Demo)',
+        description: 'Juego arcade de ejemplo integrado en Juegos IA. ¡Sube los tuyos arriba!',
+        author: 'JuegosIA',
+        devices: ['desktop'],
+        thumbUrl: null,
+        htmlContent: DEMO_GAME_HTML,
+        createdAt: Date.now()
+      };
+      await saveGame(demo);
+      try { localStorage.setItem('juegosia_demo_seeded', '1'); } catch (_) {}
+      games = [demo];
+    }
+    renderGrid();
+  }
+
+  /* ── CHECKBOXES DE DISPOSITIVOS ──────────────────────── */
+  document.querySelectorAll('.device-check').forEach(label => {
+    label.addEventListener('click', e => {
+      e.preventDefault();
+      const inp = label.querySelector('input');
+      inp.checked = !inp.checked;
+      label.classList.toggle('checked', inp.checked);
+    });
+  });
+
+  /* ── ARRASTRAR Y SOLTAR ARCHIVOS ─────────────────────── */
+  function setupDrop(dropEl, inputEl, accept, maxBytes, onFile) {
+    dropEl.addEventListener('click', e => {
+      if (e.target !== inputEl) inputEl.click();
+    });
+    inputEl.addEventListener('change', () => {
+      const f = inputEl.files[0];
+      if (f) validateAndPass(f);
+    });
+    dropEl.addEventListener('dragover', e => { e.preventDefault(); dropEl.classList.add('drag-over'); });
+    dropEl.addEventListener('dragleave', () => dropEl.classList.remove('drag-over'));
+    dropEl.addEventListener('drop', e => {
+      e.preventDefault();
+      dropEl.classList.remove('drag-over');
+      const f = e.dataTransfer.files[0];
+      if (f) validateAndPass(f);
+    });
+
+    function validateAndPass(f) {
+      const extOk = accept.some(a => f.name.toLowerCase().endsWith(a) || (a.endsWith('/') && f.type.startsWith(a)));
+      if (!extOk) { onFile(null, 'Formato de archivo no válido'); return; }
+      if (f.size > maxBytes) { onFile(null, `Demasiado pesado (máx ${maxBytes/1024/1024}MB)`); return; }
+      onFile(f);
+    }
+  }
+
+  setupDrop(imgDrop, imgInput, ['.jpg','.jpeg','.png','.webp','image/'], 5*1024*1024, (f, err) => {
+    if (err) { imgName.textContent = err; imgName.className = 'file-name error'; imgDataUrl = null; return; }
+    imgName.textContent = f.name;
+    imgName.className = 'file-name';
+    const reader = new FileReader();
+    reader.onload = e => {
+      imgDataUrl = e.target.result;
+      imgPreview.src = imgDataUrl;
+      imgPreview.classList.add('show');
+    };
+    reader.readAsDataURL(f);
+  });
+
+  setupDrop(gameDrop, gameInput, ['.html','.htm'], 25*1024*1024, (f, err) => {
+    if (err) { gameFName.textContent = err; gameFName.className = 'file-name error'; gameHtmlContent = null; return; }
+    gameFName.textContent = f.name;
+    gameFName.className = 'file-name';
+    const reader = new FileReader();
+    reader.onload = e => {
+      gameHtmlContent = e.target.result;
+    };
+    reader.readAsText(f);
+  });
+
+  /* ── PUBLICAR JUEGO ──────────────────────────────────── */
+  submitBtn.addEventListener('click', async () => {
+    const name    = document.getElementById('gameName').value.trim();
+    const desc    = document.getElementById('gameDesc').value.trim();
+    const author  = document.getElementById('gameAuthor').value.trim() || 'Anónimo';
+    const devices = [...document.querySelectorAll('.device-check input:checked')].map(c => c.value);
+
+    if (!name)            return setStatus('Escribe el nombre del juego.', 'err');
+    if (!gameHtmlContent) return setStatus('Selecciona un archivo .html válido.', 'err');
+    if (!devices.length)  return setStatus('Elige al menos un dispositivo compatible.', 'err');
+
+    submitBtn.disabled = true;
+    setStatus('Guardando juego en Juegos IA…', '');
+
+    try {
+      const newGame = {
+        id: 'game_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
+        name,
+        description: desc,
+        author,
+        devices,
+        thumbUrl: imgDataUrl,
+        htmlContent: gameHtmlContent,
+        createdAt: Date.now()
+      };
+
+      await saveGame(newGame);
+      await refreshGames();
+
+      setStatus('¡Juego publicado con éxito!', 'ok');
+      setTimeout(closeUploadModal, 700);
+    } catch (err) {
+      console.error(err);
+      setStatus('Error al guardar el juego.', 'err');
+      submitBtn.disabled = false;
+    }
+  });
+
+  function setStatus(msg, type) {
+    statusMsg.textContent = msg;
+    statusMsg.className = 'status-msg' + (type ? ' ' + type : '');
+  }
+
+  function resetForm() {
+    document.getElementById('gameName').value = '';
+    document.getElementById('gameDesc').value = '';
+    document.getElementById('gameAuthor').value = '';
+    document.querySelectorAll('.device-check').forEach((l, idx) => {
+      const checked = idx === 0;
+      l.querySelector('input').checked = checked;
+      l.classList.toggle('checked', checked);
+    });
+    imgDataUrl = null;
+    gameHtmlContent = null;
+    imgInput.value = '';
+    gameInput.value = '';
+    imgName.textContent = ''; imgName.className = 'file-name';
+    gameFName.textContent = ''; gameFName.className = 'file-name';
+    imgPreview.src = ''; imgPreview.classList.remove('show');
+    submitBtn.disabled = false;
+    setStatus('', '');
+  }
+
+  /* ── MODAL DE JUEGO ──────────────────────────────────── */
+  function openPlayModal(game) {
+    document.getElementById('playTitle').textContent = game.name;
+
+    const tagWrap = document.getElementById('playDeviceTags');
+    tagWrap.innerHTML = (game.devices || []).map(d => `<span class="device-tag">${deviceLabel(d)}</span>`).join('');
+
+    const infoBar = document.getElementById('gameInfoBar');
+    infoBar.innerHTML = [
+      game.author ? `<span>Creador: <strong>${escHtml(game.author)}</strong></span>` : '',
+      game.author && game.description ? `<span class="info-sep">|</span>` : '',
+      game.description ? `<span>${escHtml(game.description)}</span>` : '',
+    ].filter(Boolean).join('');
+
+    if (currentBlobUrl) URL.revokeObjectURL(currentBlobUrl);
+    const blob = new Blob([game.htmlContent], { type: 'text/html;charset=utf-8' });
+    currentBlobUrl = URL.createObjectURL(blob);
+
+    const frame = document.getElementById('gameFrame');
+    frame.src = currentBlobUrl;
+
+    playOvl.classList.add('visible');
+  }
+
+  function closePlayModal() {
+    playOvl.classList.remove('visible');
+    document.getElementById('gameFrame').src = 'about:blank';
+    if (currentBlobUrl) {
+      URL.revokeObjectURL(currentBlobUrl);
+      currentBlobUrl = null;
+    }
+  }
+
+  closePlayB.addEventListener('click', closePlayModal);
+  playOvl.addEventListener('click', e => { if (e.target === playOvl) closePlayModal(); });
+
+  fullscreenB.addEventListener('click', () => {
+    const wrap = document.getElementById('frameWrap');
+    if (wrap.requestFullscreen) wrap.requestFullscreen();
+    else if (wrap.webkitRequestFullscreen) wrap.webkitRequestFullscreen();
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      closeUploadModal();
+      closePlayModal();
+    }
+  });
+
+  /* ── UTILIDADES ──────────────────────────────────────── */
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&').replace(/</g,'<').replace(/>/g,'>').replace(/"/g,'"');
+  }
+  function deviceLabel(d) {
+    return { desktop:'🖥 PC', mobile:'📱 Móvil', tablet:'📟 Tablet' }[d] || d;
+  }
+
+  /* ── INICIO SEGURO ───────────────────────────────────── */
+  refreshGames().catch(err => {
+    console.warn('Iniciando en modo memoria:', err);
+    renderGrid();
+  });
+});
+</script>
+</body>
+</html>
